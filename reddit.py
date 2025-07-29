@@ -91,10 +91,19 @@ def fetch_matching_posts(reddit, subreddit_name, keywords):
 # AI Filtering
 # -------------------------------
 
+# European city and country subreddits for multiplier
+EUROPEAN_LOCATIONS = [
+    "Netherlands", "Belgium", "France", "Sweden", "Denmark", "Europe", 
+    "germany", "Amsterdam", "thehague", "Rotterdam", "Utrecht", "Brussels",
+    "Paris", "London", "Antwerpen", "luxembourg", "milano", "rome"
+]
+
 def score_post_with_ai(post):
     prompt = (
-        f"You are a social media manager for Whoppah, a secondhand design marketplace. "
+        f"You are a social media manager for Whoppah, a European secondhand design marketplace. "
         f"Rate this Reddit post's relevance to Whoppah on a scale from 1 (not relevant) to 10 (highly relevant). "
+        f"Focus especially on European content, secondhand furniture, vintage items, and interior design. "
+        f"European posts about furniture, design, and sustainable living should score higher. "
         f"Only respond with a number.\n\n"
         f"Title: {post['title']}\n"
         f"Body: {post['text']}"
@@ -106,8 +115,16 @@ def score_post_with_ai(post):
             max_tokens=5
         )
         score_text = response.choices[0].message.content.strip()
-        score = int(''.join(filter(str.isdigit, score_text)))
-        return score
+        base_score = int(''.join(filter(str.isdigit, score_text)))
+        
+        # Apply European location multiplier for diversity
+        if post['subreddit'] in EUROPEAN_LOCATIONS:
+            multiplier = 1.3  # 30% bonus for European city/country subreddits
+            final_score = min(10, int(base_score * multiplier))  # Cap at 10
+            logging.info(f"European bonus applied to r/{post['subreddit']}: {base_score} -> {final_score}")
+            return final_score
+        
+        return base_score
     except Exception as e:
         logging.error(f"OpenAI error: {e}")
         return 0
